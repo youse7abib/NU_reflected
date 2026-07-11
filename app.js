@@ -18,24 +18,25 @@ const commonStyle = `
     input[type="text"] { flex: 1; padding: 12px; border: none; border-radius: 8px; background: #334155; color: #fff; outline: none; font-size: 15px; }
     input[type="submit"] { background: #38bdf8; color: #0f172a; font-weight: bold; padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
     input[type="submit"]:hover { background: #0ea5e9; }
-    .result-box { margin-top: 25px; padding: 15px; background: #0f172a; border-left: 4px solid #38bdf8; border-radius: 4px; text-align: left; }
     .hint { margin-top: 20px; font-size: 12px; color: #64748b; }
 </style>
 `;
 
-const navbar = `
-<nav>
-    <a href="/">Dashboard</a>
-    <a href="/support">Support System</a>
-</nav>
-`;
-
 app.get("/", (req, res) => {
-    res.send(`<!DOCTYPE html><html><head><title>Secure Corp</title>${commonStyle}</head><body>${navbar}<div class="content"><div class="container"><h1>Welcome to Secure Corp Internal Portal</h1><p>Our support tracking platform is online. If you face any technical issues with your endpoints, please use our Support System to query your ticket ID.</p></div></div></body></html>`);
+    res.send(`<!DOCTYPE html><html><head><title>Dashboard</title>${commonStyle}</head><body><nav><a href="/">Dashboard</a><a href="/support">Support System</a></nav><div class="content"><div class="container"><h1>Secure Corp Main</h1><p style="text-align:center;">Select Support System tab to test.</p></div></div></body></html>`);
+});
+
+app.get("/get-secure-flag-data-api", (req, res) => {
+    if (req.headers['x-requested-by'] === 'xss-alert-hook') {
+        res.json({ flag: flag });
+    } else {
+        res.status(403).json({ error: "Access Denied" });
+    }
 });
 
 app.get("/support", (req, res) => {
     const query = req.query.query || "";
+    
     res.send(`
     <!DOCTYPE html>
     <html lang="en">
@@ -45,29 +46,45 @@ app.get("/support", (req, res) => {
         ${commonStyle}
     </head>
     <body>
-        ${navbar}
+        <nav>
+            <a href="/">Dashboard</a>
+            <a href="/support">Support System</a>
+        </nav>
         <div class="content">
             <div class="container">
                 <h1>Ticket Tracking System</h1>
                 <p>Enter your Ticket ID or Search Keywords to trace your issue status.</p>
                 <form method="GET" action="/support">
-                    <input type="text" name="query" placeholder="e.g., TICKET-9923" required autocomplete="off">
+                    <input type="text" name="query" placeholder="e.g., TICKET-9923" required autocomplete="off" value="${query.replace(/"/g, '&quot;')}">
                     <input type="submit" value="Search">
                 </form>
-                ${query ? `
-                    <div class="result-box">
-                        <p>Search results for: <strong>${query}</strong></p>
-                        <p style="color: #f87171;">⚠️ No tickets found matching your query.</p>
-                    </div>
-                ` : ""}
-                <p class="hint">Note: If you have an administrative bypass cookie, the system will render the Flag on alert().</p>
+                ${query ? `<div style="margin-top:20px; color:#10b981;">Search completed for: <span id="term"></span></div>` : ''}
+                <p class="hint">Note: If you activate the alert() function, the system will verify the trigger and render the Flag.</p>
             </div>
         </div>
         <script>
             window.oldAlert = window.alert;
             window.alert = function(msg) {
-                window.oldAlert("XSS Success! Here is your Flag: " + "${flag}");
+                fetch('/get-secure-flag-data-api', {
+                    headers: { 'x-requested-by': 'xss-alert-hook' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    window.oldAlert("XSS Success! Here is your Flag: " + data.flag);
+                })
+                .catch(() => {
+                    window.oldAlert("XSS Triggered, but failed to fetch Flag.");
+                });
             };
+
+            const rawQuery = ${JSON.stringify(query)};
+            if (rawQuery) {
+                if(document.getElementById('term')) document.getElementById('term').innerText = rawQuery;
+                if (rawQuery.includes('<script>') && rawQuery.includes('</script>')) {
+                    const cleanCode = rawQuery.replace('<script>', '').replace('</script>', '');
+                    try { eval(cleanCode); } catch(e) {}
+                }
+            }
         </script>
     </body>
     </html>
@@ -75,5 +92,5 @@ app.get("/support", (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`XSS challenge running on port ${port}`);
+    console.log(`Support Challenge running on port ${port}`);
 });
