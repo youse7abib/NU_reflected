@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const port = process.env.PORT || 3000;
 
-const flag = process.env.FLAG || "HCSE*PhiloSci{you3inmy5pla6ce7}";
+const flag = process.env.FLAG;
 
 const commonStyle = `
 <style>
